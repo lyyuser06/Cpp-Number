@@ -1,5 +1,6 @@
 # C++ 数字类型
 
+平台：WSL2 Ubuntu 22.04
 仿照Java语言的Integer类等Number类，进行C++数字类的实现。
 
 ## 整数部分（Integer）
