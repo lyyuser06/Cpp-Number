@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <stack>
+#include <algorithm>
 #include <cstring>
 #include <stdexcept>
 
@@ -134,20 +135,34 @@ class Integer
       for(int i = 0; i < _length; i++)
         digit_stack.push(_data[i]);
       
+      int off = 1;
+      if(!_sign && (strcmp(_data, "2147483648") == 0))
+        off = -1;
       int value = 0; int power = 1;
       while(!digit_stack.empty())
       {
         char digit = digit_stack.top();
-        value = value + power * (digit - ASCII_NUMBER_OFFSET);
+        value = value + power * (digit - ASCII_NUMBER_OFFSET) * off;
         power = power * 10;
         digit_stack.pop();
       }
 
-      if(!_sign) value = -value;
+      if(!_sign && (off == 1)) 
+        value = -value;
       return value;
     }
 
+    /* 高精度四则运算：加、减、乘、整除 */
+
+    Integer operator+(const Integer &other_int)
+    {
+      if(_sign && other_int._sign)
+        return plusplusNumsAdd((*this), other_int);
+      
+    }
     friend std::ostream& operator<<(std::ostream &os, const Integer &integer);
+    friend Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int);
+    friend Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int);
 };
 
 std::ostream& operator<<(std::ostream &os, const Integer &integer)
@@ -156,6 +171,80 @@ std::ostream& operator<<(std::ostream &os, const Integer &integer)
     os << "-";
   os << integer._data << std::endl;
   return os;
+}
+
+Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
+{
+    int len = this_int._length, len_other = other_int._length;
+    int carry = 0;
+    std::vector<char> sum_vec; 
+    while(len > 0 && len_other > 0)
+    {
+        int sum_digit = (this_int._data[len - 1] - ASCII_NUMBER_OFFSET) + 
+            (other_int._data[len_other - 1] - ASCII_NUMBER_OFFSET) + carry;
+        if(sum_digit >= 10)
+        {
+            carry = 1;
+            sum_digit -= 10;
+        }
+        else carry = 0;
+
+        char digit = sum_digit + ASCII_NUMBER_OFFSET;
+        sum_vec.push_back(digit);
+        --len; --len_other;
+    }
+
+    int len_longer = std::max(len, len_other);
+    bool is_this_longer = (len_longer == len) ? true : false;
+    while(len_longer > 0)
+    {
+        if(is_this_longer)
+        {
+            int sum_digit = (this_int._data[len_longer - 1] - ASCII_NUMBER_OFFSET) + carry;
+            if(sum_digit >= 10)
+            {
+                carry = 1;
+                sum_digit -= 10;
+            }
+            char digit = sum_digit + ASCII_NUMBER_OFFSET;
+            sum_vec.push_back(digit);
+        }
+        else
+        {
+            int sum_digit = (other_int._data[len_longer - 1] - ASCII_NUMBER_OFFSET) + carry;
+            if(sum_digit >= 10)
+            {
+                carry = 1;
+                sum_digit -= 10;
+            }
+            else carry = 0;
+
+            char digit = sum_digit + ASCII_NUMBER_OFFSET;
+            sum_vec.push_back(digit);
+        }
+            --len_longer;
+    }
+
+    if(carry == 1) 
+        sum_vec.push_back('1');
+            
+    int len_sum = sum_vec.size();
+    char sum_array[len_sum + 1]; int idx = 0;
+    for(auto it = sum_vec.rbegin(); it != sum_vec.rend(); ++it)
+    {
+        sum_array[idx] = (*it);
+        ++idx;
+    }
+    sum_array[len_sum] = '\0';
+
+    Integer sum(true, sum_array);
+    return sum;
+}
+
+Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
+{
+    int len_this = this_int._length, len_other = other_int._length;
+    bool is_len_equal;
 }
 
 #endif
