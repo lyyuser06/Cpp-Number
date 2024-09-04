@@ -8,12 +8,16 @@
 
 接口：
 > int getVal(void)
+
 > ostream& opeartor<<(ostream &, const Integer &)
+
 > 赋值符号和移动赋值
 
 文件结构：
 > Integer.hh 目前已实现的整数类雏形
+
 > Main.cc 调试用主程序
+
 > readme.md 文档
 
 展望：高精度运算；有理数、实数部分。
