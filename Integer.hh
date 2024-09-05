@@ -7,6 +7,8 @@
 #include <stack>
 #include <algorithm>
 #include <cstring>
+#include <cmath>
+#include <memory>
 #include <stdexcept>
 
 #define ASCII_NUMBER_OFFSET 48
@@ -18,7 +20,7 @@ class Integer
     char *_data;
     int _length;
     
-    void copyInteger(const bool &sign, char* const &data)
+    void copyInteger(const bool &sign, const char* const &data)
     {
       _sign = sign;
       _length = strlen(data);
@@ -46,7 +48,7 @@ class Integer
 
   public:
     Integer() : _length(0), _data(nullptr), _sign(false) {}
-    Integer(const bool &sign, char* const &data) { copyInteger(sign, data); }
+    Integer(const bool &sign, const char* const &data) { copyInteger(sign, data); }
     Integer(const Integer &integer) { copyInteger(integer._sign, integer._data); }
     Integer(Integer &&integer) : _sign(integer._sign), _length(integer._length), 
       _data(integer._data) { integer._data = nullptr; }
@@ -152,14 +154,41 @@ class Integer
       return value;
     }
 
+    bool getSign() const { return _sign; }
+
+    bool setSign(const bool &s) 
+    {
+      _sign = s; 
+      return _sign; 
+    }
+
     /* 高精度四则运算：加、减、乘、整除 */
 
     Integer operator+(const Integer &other_int)
     {
       if(_sign && other_int._sign)
         return plusplusNumsAdd((*this), other_int);
+      else if(!_sign && !other_int._sign)
+      {
+        Integer this_num(*this), that_num(other_int);
+        this_num.setSign(true);
+        that_num.setSign(true);
+        Integer sum = plusplusNumsAdd(this_num, that_num);
+        sum.setSign(false);
+        return sum;
+      }
       
+      Integer sum = plusMinusNumsAdd((*this), other_int);
+      return sum;
     }
+
+    Integer operator-(const Integer &other_int)
+    {
+      Integer that(other_int);
+      that.setSign(!that.getSign());
+      return ((*this) + that);
+    }
+    
     friend std::ostream& operator<<(std::ostream &os, const Integer &integer);
     friend Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int);
     friend Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int);
@@ -222,7 +251,7 @@ Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
             char digit = sum_digit + ASCII_NUMBER_OFFSET;
             sum_vec.push_back(digit);
         }
-            --len_longer;
+        --len_longer;
     }
 
     if(carry == 1) 
@@ -241,10 +270,95 @@ Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
     return sum;
 }
 
+/* 
+ *  辅助函数：正数相减，大数减小数。
+ *  小数的位数不超过大数，且如果小于大数的话，位数进行前导补0操作。
+ *  本函数的两个参数数组长度相同，因此需要事先进行补齐0的操作，如果
+ *  长度相同，那么不用补齐。
+ */
+
+char* plusBigSmallNumsMinus(const char* const &big, const char* const &small)
+{
+  int len = std::strlen(big);
+  int borrow = 0; char *diff = new char[len + 1];
+  diff[len] = '\0';
+
+  while(len > 0)
+  {
+    int digit_num = (big[len - 1] - borrow) - small[len - 1];
+    if(digit_num < 0)
+    {
+      digit_num += 10;
+      borrow = 1;
+    }
+    else borrow = 0;
+    diff[len - 1] = digit_num + ASCII_NUMBER_OFFSET;
+    --len;
+  }
+  return diff;
+}
+
+/* 辅助函数：扩展位数，并补齐前导0。 */
+
+char* expandNum(const char* const &num, int difference)
+{
+  int new_len = std::strlen(num) + difference;
+  char *expand = new char[new_len];
+  std::strcpy(expand + difference, num);
+  std::memset(expand, '0', difference * sizeof(char));
+  return expand;
+}
+
 Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
 {
-    int len_this = this_int._length, len_other = other_int._length;
-    bool is_len_equal;
+  if(std::strcmp(this_int._data, other_int._data) == 0)
+    return Integer(0);
+
+  int len_this = std::strlen(this_int._data), len_other = std::strlen(other_int._data);
+  int difference = len_this - len_other;
+
+  /* 长度比较，1：this比other长；0：一样长；-1：this比other短 */
+  int len_cmp = 0; bool this_abs_bigger = false;
+  if(difference > 0) 
+  {
+    len_cmp = 1;
+    this_abs_bigger = true;
+  }
+  else if(difference == 0)
+  {
+    len_cmp = 0;
+    this_abs_bigger = (std::strcmp(this_int._data, other_int._data) > 0) ? true : false;
+  }
+  else 
+  {
+    difference = -difference;
+    len_cmp = -1;
+    this_abs_bigger = false;
+  }
+
+  /* 扩展：当this长于other时扩展other，其余情况扩展this。 */
+  char *expand;
+  if(len_cmp > 0) expand = expandNum(other_int._data, difference);
+  else expand = expandNum(this_int._data, difference);
+
+  char *diff;
+  if(len_cmp == 0 && this_abs_bigger) 
+    diff = plusBigSmallNumsMinus(expand, other_int._data);
+  else if(len_cmp == 0 && !this_abs_bigger) 
+    diff = plusBigSmallNumsMinus(other_int._data, expand);
+  else if(len_cmp > 0)
+    diff = plusBigSmallNumsMinus(this_int._data, expand);
+  else if(len_cmp < 0)
+    diff = plusBigSmallNumsMinus(other_int._data, expand);
+
+  if(this_abs_bigger && this_int._sign && !other_int._sign)
+    return Integer(true, diff);
+  else if(this_abs_bigger && !this_int._sign && other_int._sign)
+    return Integer(false, diff);
+  else if(!this_abs_bigger && this_int._sign && !other_int._sign)
+    return Integer(false, diff);
+  
+  return Integer(true, diff);
 }
 
 #endif

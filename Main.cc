@@ -2,6 +2,7 @@
 
 int main()
 {
+  /*
   Integer i1(-12);
   Integer i2(0);
   Integer i3(12);
@@ -32,6 +33,17 @@ int main()
   std::cout << v1c << v5c << std::endl;
 
   Integer k("2147483648");
+  */
+
   //std::cout << k.getVal() << std::endl;
+
+  Integer a("75298572"), b("354542525");
+  Integer c = a + b;
+  Integer d = a - b;
+
+  int ai = 75298572, bi = 354542525;
+  int ci = ai + bi, di = ai - bi;
+
+  std::cout << c << d << ci << " " << di << std::endl;
   return 0;
 }
