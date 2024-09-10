@@ -189,6 +189,8 @@ class Integer
       return ((*this) + that);
     }
     
+    const char* getNum() const { return _data; }
+
     friend std::ostream& operator<<(std::ostream &os, const Integer &integer);
     friend Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int);
     friend Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int);
@@ -298,7 +300,7 @@ char* plusBigSmallNumsMinus(const char* const &big, const char* const &small)
   return diff;
 }
 
-/* 辅助函数：扩展位数，并补齐前导0。 */
+/* 辅助函数：扩展位数，并补齐前导0。*/
 
 char* expandNum(const char* const &num, int difference)
 {
@@ -307,6 +309,27 @@ char* expandNum(const char* const &num, int difference)
   std::strcpy(expand + difference, num);
   std::memset(expand, '0', difference * sizeof(char));
   return expand;
+}
+
+/* 辅助函数：缩减位数，并删除前导0。*/
+
+char* shrinkNum(const char* const &num)
+{
+  int idx = 0;
+  int old_len = std::strlen(num);
+  while(idx < old_len && num[idx] == '0')
+    idx++;
+
+  if(idx == old_len)
+  {
+    char *shrink = new char[2];
+    shrink[0] = '0'; shrink[1] = '\0';
+    return shrink;
+  }
+
+  char *shrink = new char[old_len - idx];
+  std::strcpy(shrink, num + idx);
+  return shrink;
 }
 
 Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
@@ -352,13 +375,36 @@ Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
     diff = plusBigSmallNumsMinus(other_int._data, expand);
 
   if(this_abs_bigger && this_int._sign && !other_int._sign)
-    return Integer(true, diff);
+  {
+    char *shrink = shrinkNum(diff);
+    Integer ret(true, shrink);
+    delete expand; delete diff; 
+    delete shrink;
+    return ret;
+  }
   else if(this_abs_bigger && !this_int._sign && other_int._sign)
-    return Integer(false, diff);
+  {
+    char *shrink = shrinkNum(diff);
+    Integer ret(false, shrink);
+    delete expand; delete diff; 
+    delete shrink;
+    return ret;
+  }
   else if(!this_abs_bigger && this_int._sign && !other_int._sign)
-    return Integer(false, diff);
+  {
+    char *shrink = shrinkNum(diff);
+    Integer ret(false, shrink);
+    delete expand; delete diff; 
+    delete shrink;
+    return ret;
+  }
   
-  return Integer(true, diff);
+  /* 结果缩位 */
+  char *shrink = shrinkNum(diff);
+  Integer ret(true, shrink);
+  delete expand; delete diff; 
+  delete shrink;
+  return ret;
 }
 
 #endif
