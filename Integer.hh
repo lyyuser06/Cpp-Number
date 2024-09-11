@@ -47,11 +47,11 @@ class Integer
     }
 
   public:
-    Integer() : _length(0), _data(nullptr), _sign(false) {}
+    Integer() : _sign(false), _data(nullptr), _length(0) {}
     Integer(const bool &sign, const char* const &data) { copyInteger(sign, data); }
     Integer(const Integer &integer) { copyInteger(integer._sign, integer._data); }
-    Integer(Integer &&integer) : _sign(integer._sign), _length(integer._length), 
-      _data(integer._data) { integer._data = nullptr; }
+    Integer(Integer &&integer) : _sign(integer._sign), _data(integer._data), _length(integer._length)
+       { integer._data = nullptr; }
     Integer(const char* const &integer)
     {
       if(integer[0] == '-')
@@ -131,9 +131,7 @@ class Integer
       if(overIntJudge())
         throw std::runtime_error("Error:Over Int Range!\n");
       
-      
       std::stack<char> digit_stack;
-
       for(int i = 0; i < _length; i++)
         digit_stack.push(_data[i]);
       
@@ -162,38 +160,38 @@ class Integer
       return _sign; 
     }
 
+    const char* getNum() const { return _data; }
+
     /* 高精度四则运算：加、减、乘、整除 */
 
-    Integer operator+(const Integer &other_int)
+    Integer operator+(const Integer &other_int) const
     {
       if(_sign && other_int._sign)
-        return plusplusNumsAdd((*this), other_int);
+        return addNums((*this), other_int);
       else if(!_sign && !other_int._sign)
       {
         Integer this_num(*this), that_num(other_int);
         this_num.setSign(true);
         that_num.setSign(true);
-        Integer sum = plusplusNumsAdd(this_num, that_num);
+        Integer sum = addNums(this_num, that_num);
         sum.setSign(false);
         return sum;
       }
       
-      Integer sum = plusMinusNumsAdd((*this), other_int);
+      Integer sum = minusNums((*this), other_int);
       return sum;
     }
 
-    Integer operator-(const Integer &other_int)
+    Integer operator-(const Integer &other_int) const
     {
       Integer that(other_int);
       that.setSign(!that.getSign());
       return ((*this) + that);
     }
-    
-    const char* getNum() const { return _data; }
 
     friend std::ostream& operator<<(std::ostream &os, const Integer &integer);
-    friend Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int);
-    friend Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int);
+    friend Integer addNums(const Integer &this_int, const Integer &other_int);
+    friend Integer minusNums(const Integer &this_int, const Integer &other_int);
 };
 
 std::ostream& operator<<(std::ostream &os, const Integer &integer)
@@ -204,15 +202,19 @@ std::ostream& operator<<(std::ostream &os, const Integer &integer)
   return os;
 }
 
-Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
+/* 
+ *  辅助函数：正数相加。
+ */
+
+char* addNumsOperand(const char* const &a, const char* const &b)
 {
-    int len = this_int._length, len_other = other_int._length;
+    int len_a = std::strlen(a), len_b = std::strlen(b);
     int carry = 0;
     std::vector<char> sum_vec; 
-    while(len > 0 && len_other > 0)
+    while(len_a > 0 && len_b > 0)
     {
-        int sum_digit = (this_int._data[len - 1] - ASCII_NUMBER_OFFSET) + 
-            (other_int._data[len_other - 1] - ASCII_NUMBER_OFFSET) + carry;
+        int sum_digit = (a[len_a - 1] - ASCII_NUMBER_OFFSET) + 
+            (b[len_b - 1] - ASCII_NUMBER_OFFSET) + carry;
         if(sum_digit >= 10)
         {
             carry = 1;
@@ -222,16 +224,16 @@ Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
 
         char digit = sum_digit + ASCII_NUMBER_OFFSET;
         sum_vec.push_back(digit);
-        --len; --len_other;
+        --len_a; --len_b;
     }
 
-    int len_longer = std::max(len, len_other);
-    bool is_this_longer = (len_longer == len) ? true : false;
-    while(len_longer > 0)
+    bool is_a_longer = (len_b == 0);
+    int difference = (is_a_longer) ? len_a : len_b;
+    while(difference > 0)
     {
-        if(is_this_longer)
+        if(is_a_longer)
         {
-            int sum_digit = (this_int._data[len_longer - 1] - ASCII_NUMBER_OFFSET) + carry;
+            int sum_digit = (a[difference - 1] - ASCII_NUMBER_OFFSET) + carry;
             if(sum_digit >= 10)
             {
                 carry = 1;
@@ -242,7 +244,7 @@ Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
         }
         else
         {
-            int sum_digit = (other_int._data[len_longer - 1] - ASCII_NUMBER_OFFSET) + carry;
+            int sum_digit = (b[difference - 1] - ASCII_NUMBER_OFFSET) + carry;
             if(sum_digit >= 10)
             {
                 carry = 1;
@@ -253,14 +255,14 @@ Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
             char digit = sum_digit + ASCII_NUMBER_OFFSET;
             sum_vec.push_back(digit);
         }
-        --len_longer;
+        --difference;
     }
 
     if(carry == 1) 
         sum_vec.push_back('1');
             
     int len_sum = sum_vec.size();
-    char sum_array[len_sum + 1]; int idx = 0;
+    char *sum_array = new char[len_sum + 1]; int idx = 0;
     for(auto it = sum_vec.rbegin(); it != sum_vec.rend(); ++it)
     {
         sum_array[idx] = (*it);
@@ -268,8 +270,45 @@ Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
     }
     sum_array[len_sum] = '\0';
 
-    Integer sum(true, sum_array);
-    return sum;
+    return sum_array;
+}
+
+Integer addNums(const Integer &this_int, const Integer &other_int)
+{
+  char *sum = addNumsOperand(this_int._data, other_int._data);
+  Integer ret(true, sum);
+  delete sum;
+  return ret;
+}
+
+/* 辅助函数：数字字符串开头扩展位数，并补齐前导0。缩减位数，并删除前导0。*/
+
+char* expandNumAtStart(const char* const &num, int difference)
+{
+  int new_len = std::strlen(num) + difference;
+  char *expand = new char[new_len];
+  std::strcpy(expand + difference, num);
+  std::memset(expand, '0', difference * sizeof(char));
+  return expand;
+}
+
+char* shrinkNumAtStart(const char* const &num)
+{
+  int idx = 0;
+  int old_len = std::strlen(num);
+  while(idx < old_len && num[idx] == '0')
+    idx++;
+
+  if(idx == old_len)
+  {
+    char *shrink = new char[2];
+    shrink[0] = '0'; shrink[1] = '\0';
+    return shrink;
+  }
+
+  char *shrink = new char[old_len - idx];
+  std::strcpy(shrink, num + idx);
+  return shrink;
 }
 
 /* 
@@ -279,7 +318,7 @@ Integer plusplusNumsAdd(const Integer &this_int, const Integer &other_int)
  *  长度相同，那么不用补齐。
  */
 
-char* plusBigSmallNumsMinus(const char* const &big, const char* const &small)
+char* minusNumsOperand(const char* const &big, const char* const &small)
 {
   int len = std::strlen(big);
   int borrow = 0; char *diff = new char[len + 1];
@@ -300,39 +339,7 @@ char* plusBigSmallNumsMinus(const char* const &big, const char* const &small)
   return diff;
 }
 
-/* 辅助函数：扩展位数，并补齐前导0。*/
-
-char* expandNum(const char* const &num, int difference)
-{
-  int new_len = std::strlen(num) + difference;
-  char *expand = new char[new_len];
-  std::strcpy(expand + difference, num);
-  std::memset(expand, '0', difference * sizeof(char));
-  return expand;
-}
-
-/* 辅助函数：缩减位数，并删除前导0。*/
-
-char* shrinkNum(const char* const &num)
-{
-  int idx = 0;
-  int old_len = std::strlen(num);
-  while(idx < old_len && num[idx] == '0')
-    idx++;
-
-  if(idx == old_len)
-  {
-    char *shrink = new char[2];
-    shrink[0] = '0'; shrink[1] = '\0';
-    return shrink;
-  }
-
-  char *shrink = new char[old_len - idx];
-  std::strcpy(shrink, num + idx);
-  return shrink;
-}
-
-Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
+Integer minusNums(const Integer &this_int, const Integer &other_int)
 {
   if(std::strcmp(this_int._data, other_int._data) == 0)
     return Integer(0);
@@ -361,22 +368,22 @@ Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
 
   /* 扩展：当this长于other时扩展other，其余情况扩展this。 */
   char *expand;
-  if(len_cmp > 0) expand = expandNum(other_int._data, difference);
-  else expand = expandNum(this_int._data, difference);
+  if(len_cmp > 0) expand = expandNumAtStart(other_int._data, difference);
+  else expand = expandNumAtStart(this_int._data, difference);
 
   char *diff;
   if(len_cmp == 0 && this_abs_bigger) 
-    diff = plusBigSmallNumsMinus(expand, other_int._data);
+    diff = minusNumsOperand(expand, other_int._data);
   else if(len_cmp == 0 && !this_abs_bigger) 
-    diff = plusBigSmallNumsMinus(other_int._data, expand);
+    diff = minusNumsOperand(other_int._data, expand);
   else if(len_cmp > 0)
-    diff = plusBigSmallNumsMinus(this_int._data, expand);
+    diff = minusNumsOperand(this_int._data, expand);
   else if(len_cmp < 0)
-    diff = plusBigSmallNumsMinus(other_int._data, expand);
+    diff = minusNumsOperand(other_int._data, expand);
 
   if(this_abs_bigger && this_int._sign && !other_int._sign)
   {
-    char *shrink = shrinkNum(diff);
+    char *shrink = shrinkNumAtStart(diff);
     Integer ret(true, shrink);
     delete expand; delete diff; 
     delete shrink;
@@ -384,7 +391,7 @@ Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
   }
   else if(this_abs_bigger && !this_int._sign && other_int._sign)
   {
-    char *shrink = shrinkNum(diff);
+    char *shrink = shrinkNumAtStart(diff);
     Integer ret(false, shrink);
     delete expand; delete diff; 
     delete shrink;
@@ -392,7 +399,7 @@ Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
   }
   else if(!this_abs_bigger && this_int._sign && !other_int._sign)
   {
-    char *shrink = shrinkNum(diff);
+    char *shrink = shrinkNumAtStart(diff);
     Integer ret(false, shrink);
     delete expand; delete diff; 
     delete shrink;
@@ -400,11 +407,46 @@ Integer plusMinusNumsAdd(const Integer &this_int, const Integer &other_int)
   }
   
   /* 结果缩位 */
-  char *shrink = shrinkNum(diff);
+  char *shrink = shrinkNumAtStart(diff);
   Integer ret(true, shrink);
   delete expand; delete diff; 
   delete shrink;
   return ret;
 }
+
+/* 辅助函数: 在数字字符串末尾按位数扩展，添加后置0；缩减，删除0。 */
+
+char* expandNumAtEnd(const char* const &num, int difference)
+{
+  int old_len = std::strlen(num);
+  int new_len = old_len + difference;
+  char *expand = new char[new_len + 1];
+  std::strcpy(expand, num);
+  std::memset(expand + old_len, '0', difference);
+  expand[new_len] = '\0';
+  return expand;
+}
+
+char* shrinkNumAtEnd(const char* const &num)
+{
+  int idx = std::strlen(num) - 1;
+  while(idx > 0)
+  {
+    if(num[idx] != '0') break;
+    --idx;
+  }
+
+  char *shrink = new char[idx + 2];
+  for(int i = 0; i <= idx; i++)
+    shrink[i] = num[i];
+  shrink[idx + 1] = '\0';
+  return shrink;
+}
+
+char* multiplyNums(const char* const &a, const char* const &b)
+{
+
+}
+
 
 #endif
