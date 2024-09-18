@@ -9,15 +9,25 @@
 接口：
 > int getVal(void)
 
-> ostream& opeartor<<(ostream &, const Integer &)
+> ostream& operator<<(ostream &, const Integer &)
 
 > 赋值符号和移动赋值
 
+> + - * 运算符
+
 文件结构：
-> Integer.hh 目前已实现的整数类雏形
+> Integer.hh 目前已实现的整数类
+
+> IntegerTools.hh 需要使用的各种辅助工具函数
 
 > Main.cc 调试用主程序
 
 > readme.md 文档
 
-展望：高精度运算；有理数、实数部分。
+> Makefile 工程构建文件
+
+> TestInteger.cc C++语言编写的检测脚本，需要编译成 CPython 库
+
+> TestInteger.py 测量运行时间的Python脚本
+
+未实现的部分：整数整除法。
